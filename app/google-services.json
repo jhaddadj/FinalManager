@@ -1,0 +1,227 @@
+{
+  "project_info": {
+    "project_number": "980732855121",
+    "firebase_url": "https://silence-23762-default-rtdb.firebaseio.com",
+    "project_id": "silence-23762",
+    "storage_bucket": "silence-23762.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980732855121:android:d961d25c98cbcef576c970",
+        "android_client_info": {
+          "package_name": "com.example.manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQfFnVPWJ5YwVkvKmUjTaGr0kxwPZNzRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980732855121-2bbdtp4obi9nieu0cdha3btpt0qs2r1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jeuxDevelopers.SilenceApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980732855121:android:637b8b3efb8040a876c970",
+        "android_client_info": {
+          "package_name": "com.example.myapp.discoverwales"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQfFnVPWJ5YwVkvKmUjTaGr0kxwPZNzRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980732855121-2bbdtp4obi9nieu0cdha3btpt0qs2r1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jeuxDevelopers.SilenceApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980732855121:android:4caadf8397437ba376c970",
+        "android_client_info": {
+          "package_name": "com.jeuxdevelopers.silence"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQfFnVPWJ5YwVkvKmUjTaGr0kxwPZNzRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980732855121-2bbdtp4obi9nieu0cdha3btpt0qs2r1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jeuxDevelopers.SilenceApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980732855121:android:d68bb2f81afd5ce176c970",
+        "android_client_info": {
+          "package_name": "com.jeuxdevelopers.silenceApp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQfFnVPWJ5YwVkvKmUjTaGr0kxwPZNzRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980732855121-2bbdtp4obi9nieu0cdha3btpt0qs2r1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jeuxDevelopers.SilenceApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980732855121:android:30bf82683762e08a76c970",
+        "android_client_info": {
+          "package_name": "com.zdeve.zid.silence"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQfFnVPWJ5YwVkvKmUjTaGr0kxwPZNzRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980732855121-2bbdtp4obi9nieu0cdha3btpt0qs2r1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jeuxDevelopers.SilenceApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980732855121:android:bdb3e1f127b193e376c970",
+        "android_client_info": {
+          "package_name": "com.zdeves.zids.silenceapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQfFnVPWJ5YwVkvKmUjTaGr0kxwPZNzRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980732855121-713ksec7nq67t0j31qb5ja17l2f6erd2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980732855121-2bbdtp4obi9nieu0cdha3btpt0qs2r1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jeuxDevelopers.SilenceApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
