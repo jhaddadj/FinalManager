@@ -22,12 +22,15 @@ import org.chocosolver.solver.variables.IntVar;
 import org.chocosolver.solver.variables.Variable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -405,11 +408,11 @@ public class ChocoSolverTimetableGenerator implements TimetableGenerator {
                                 
                                 // Use day and time based on session index
                                 int day = i % 5;  // Monday to Friday
-                                int hour = 9 + (i / 5) % 8;  // 9 AM to 4 PM
+                                int hour = (i / 5) % 8;  // 9 AM to 4 PM
                                 
                                 session.setDayOfWeek(DAYS_OF_WEEK[day]);
-                                session.setStartTime(String.format("%02d:00", hour));
-                                session.setEndTime(String.format("%02d:00", hour + 1));
+                                session.setStartTime(String.format("%02d:00", hour + 9));
+                                session.setEndTime(String.format("%02d:00", hour + 10));
                                 
                                 session.setResourceId(resource.getId());
                                 session.setResourceName(resource.getName());
@@ -660,58 +663,95 @@ public class ChocoSolverTimetableGenerator implements TimetableGenerator {
     }
 
     private Timetable createManualTimetable(List<Course> courses, List<Resource> resources, List<Lecturer> lecturers) {
-        Timetable manualTimetable = new Timetable();
+        Log.d(TAG, "Creating manual timetable as fallback");
+        Timetable timetable = new Timetable();
         
-        // Schedule each course manually
-        int dayIndex = 0;
-        int hourIndex = 0;
-        
+        // For each course, add the required number of sessions
+        // Try to distribute them evenly across the week
+        int totalSessions = 0;
         for (Course course : courses) {
-            try {
-                int requiredSessions = Math.max(1, course.getRequiredSessionsPerWeek());
-                
-                for (int i = 0; i < requiredSessions; i++) {
-                    // Create manual session
-                    TimetableSession manualSession = new TimetableSession();
-                    manualSession.setId(UUID.randomUUID().toString());
-                    manualSession.setCourseId(course.getId());
-                    manualSession.setCourseName(course.getName());
-                    manualSession.setSessionType(course.getCode() != null ? course.getCode() : "LECTURE");
+            totalSessions += course.getRequiredSessionsPerWeek();
+        }
+        
+        Log.d(TAG, "Total sessions to manually schedule: " + totalSessions);
+        
+        // First, assign appropriate lecturers and resources
+        for (Course course : courses) {
+            addManualSessionsForCourse(course, resources, lecturers, timetable);
+        }
+        
+        // Check for conflicts and try to resolve them
+        if (hasConflicts(timetable)) {
+            Log.w(TAG, "Manual timetable has conflicts - attempting to resolve");
+            
+            // Simple strategy: If conflicts found, shift problematic sessions to later hours
+            List<TimetableSession> sessions = new ArrayList<>(timetable.getSessions());
+            Map<String, List<TimetableSession>> sessionsByTime = new HashMap<>();
+            
+            // Group sessions by day and hour
+            for (TimetableSession session : sessions) {
+                String key = session.getDayOfWeek() + "-" + session.getStartTime();
+                if (!sessionsByTime.containsKey(key)) {
+                    sessionsByTime.put(key, new ArrayList<>());
+                }
+                sessionsByTime.get(key).add(session);
+            }
+            
+            // Fix overlapping sessions by redistributing them to available slots
+            for (Map.Entry<String, List<TimetableSession>> entry : sessionsByTime.entrySet()) {
+                if (entry.getValue().size() > 1) {
+                    Log.d(TAG, "Found conflict at " + entry.getKey() + " with " + entry.getValue().size() + " sessions");
                     
-                    // Use simple round-robin assignment
-                    String dayOfWeek = DAYS_OF_WEEK[dayIndex];
-                    int startHour = START_HOUR + hourIndex;
-                    String startTime = String.format("%02d:00", startHour);
-                    String endTime = String.format("%02d:00", startHour + 1);
-                    
-                    manualSession.setDayOfWeek(dayOfWeek);
-                    manualSession.setStartTime(startTime);
-                    manualSession.setEndTime(endTime);
-                    
-                    // Assign resource and lecturer
-                    Resource resource = resources.isEmpty() ? null : resources.get(0);
-                    Lecturer lecturer = lecturers.isEmpty() ? null : lecturers.get(0);
-                    
-                    manualSession.setResourceId(resource != null ? resource.getId() : "default-resource-id");
-                    manualSession.setResourceName(resource != null ? resource.getName() : "Default Resource");
-                    manualSession.setLecturerId(lecturer != null ? lecturer.getId() : "default-lecturer-id");
-                    manualSession.setLecturerName(lecturer != null ? lecturer.getName() : "Default Lecturer");
-                    
-                    manualTimetable.addSession(manualSession);
-                    
-                    // Update indices for next session
-                    hourIndex = (hourIndex + 1) % HOURS_PER_DAY;
-                    if (hourIndex == 0) {
-                        dayIndex = (dayIndex + 1) % DAYS_PER_WEEK;
+                    // Keep the first session in place, move others
+                    for (int i = 1; i < entry.getValue().size(); i++) {
+                        TimetableSession session = entry.getValue().get(i);
+                        
+                        // Try to find a free slot - prioritize spreading throughout the day
+                        boolean relocated = false;
+                        for (int day = 0; day < DAYS_PER_WEEK; day++) {
+                            String dayOfWeek = DAYS_OF_WEEK[day];
+                            // Try to distribute across all hours (9am-5pm)
+                            for (int hourOffset = 0; hourOffset < HOURS_PER_DAY; hourOffset++) {
+                                // Use a better distribution by trying slots in this order: 
+                                // 12pm, 10am, 2pm, 9am, 3pm, 11am, 1pm, 4pm
+                                int[] hourOrder = {3, 1, 5, 0, 6, 2, 4, 7};
+                                int hour = START_HOUR + hourOrder[hourOffset % hourOrder.length];
+                                
+                                String newTimeKey = dayOfWeek + "-" + String.format("%02d:00", hour);
+                                
+                                if (!sessionsByTime.containsKey(newTimeKey) || sessionsByTime.get(newTimeKey).isEmpty()) {
+                                    // This slot is free, move the session here
+                                    session.setDayOfWeek(dayOfWeek);
+                                    session.setStartTime(String.format("%02d:00", hour));
+                                    session.setEndTime(String.format("%02d:00", hour + 1));
+                                    
+                                    // Update our tracking map
+                                    if (!sessionsByTime.containsKey(newTimeKey)) {
+                                        sessionsByTime.put(newTimeKey, new ArrayList<>());
+                                    }
+                                    sessionsByTime.get(newTimeKey).add(session);
+                                    
+                                    // Remove from old slot
+                                    entry.getValue().remove(i);
+                                    i--; // Adjust index after removal
+                                    
+                                    relocated = true;
+                                    Log.d(TAG, "Relocated session to " + newTimeKey);
+                                    break;
+                                }
+                            }
+                            if (relocated) break;
+                        }
+                        
+                        if (!relocated) {
+                            Log.w(TAG, "Could not find free slot for session - keeping in original position");
+                        }
                     }
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Error in manual scheduling for course: " + course.getName(), e);
             }
         }
         
-        Log.d(TAG, "Created manual timetable with " + manualTimetable.getSessions().size() + " sessions");
-        return manualTimetable;
+        return timetable;
     }
 
     private void addConstraints(Model model, List<SessionToSchedule> allSessions, 
@@ -720,159 +760,332 @@ public class ChocoSolverTimetableGenerator implements TimetableGenerator {
                                 Map<Integer, IntVar> sessionHourVars,
                                 Map<Integer, IntVar> sessionResourceVars,
                                 Map<Integer, IntVar> sessionLecturerVars) {
-        // CONSTRAINT: No resource can be used by more than one session at the same time
+        Log.d(TAG, "Adding constraints to the model");
+        
+        // 1. No lecturer can be in two places at the same time
         for (int i = 0; i < allSessions.size(); i++) {
-            SessionToSchedule sessionI = allSessions.get(i);
+            SessionToSchedule session1 = allSessions.get(i);
+            IntVar day1 = sessionDayVars.get(session1.getIndex());
+            IntVar hour1 = sessionHourVars.get(session1.getIndex());
+            IntVar lecturer1 = sessionLecturerVars.get(session1.getIndex());
+            
             for (int j = i + 1; j < allSessions.size(); j++) {
-                SessionToSchedule sessionJ = allSessions.get(j);
+                SessionToSchedule session2 = allSessions.get(j);
+                IntVar day2 = sessionDayVars.get(session2.getIndex());
+                IntVar hour2 = sessionHourVars.get(session2.getIndex());
+                IntVar lecturer2 = sessionLecturerVars.get(session2.getIndex());
                 
-                // If sessions are on the same day, at the same hour, they can't use the same resource
+                // If it's the same lecturer, they can't be in two sessions at the same time
                 model.ifThen(
-                    model.and(
-                        model.arithm(sessionDayVars.get(sessionI.getIndex()), "=", sessionDayVars.get(sessionJ.getIndex())),
-                        model.arithm(sessionHourVars.get(sessionI.getIndex()), "=", sessionHourVars.get(sessionJ.getIndex()))
-                    ),
-                    model.arithm(sessionResourceVars.get(sessionI.getIndex()), "!=", sessionResourceVars.get(sessionJ.getIndex()))
+                    model.arithm(lecturer1, "=", lecturer2),
+                    model.or(
+                        model.arithm(day1, "!=", day2),
+                        model.arithm(hour1, "!=", hour2)
+                    )
                 );
             }
         }
         
-        // CONSTRAINT: No lecturer can teach more than one session at the same time
-        for (int i = 0; i < allSessions.size(); i++) {
-            SessionToSchedule sessionI = allSessions.get(i);
-            for (int j = i + 1; j < allSessions.size(); j++) {
-                SessionToSchedule sessionJ = allSessions.get(j);
-                
-                // If sessions are on the same day, at the same hour, they can't have the same lecturer
-                model.ifThen(
-                    model.and(
-                        model.arithm(sessionDayVars.get(sessionI.getIndex()), "=", sessionDayVars.get(sessionJ.getIndex())),
-                        model.arithm(sessionHourVars.get(sessionI.getIndex()), "=", sessionHourVars.get(sessionJ.getIndex()))
-                    ),
-                    model.arithm(sessionLecturerVars.get(sessionI.getIndex()), "!=", sessionLecturerVars.get(sessionJ.getIndex()))
-                );
+        // Track the number of sessions per day and per hour
+        IntVar[] dayCounts = new IntVar[DAYS_PER_WEEK];
+        IntVar[] hourCounts = new IntVar[HOURS_PER_DAY];
+        
+        for (int d = 0; d < DAYS_PER_WEEK; d++) {
+            dayCounts[d] = model.intVar("dayCount_" + d, 0, allSessions.size());
+            
+            // Count sessions on this day
+            IntVar[] dayBoolVars = new IntVar[allSessions.size()];
+            for (int i = 0; i < allSessions.size(); i++) {
+                IntVar dayVar = sessionDayVars.get(allSessions.get(i).getIndex());
+                dayBoolVars[i] = model.intEqView(dayVar, d);
             }
+            model.sum(dayBoolVars, "=", dayCounts[d]).post();
         }
+        
+        for (int h = 0; h < HOURS_PER_DAY; h++) {
+            hourCounts[h] = model.intVar("hourCount_" + h, 0, allSessions.size());
+            
+            // Count sessions in this hour
+            IntVar[] hourBoolVars = new IntVar[allSessions.size()];
+            for (int i = 0; i < allSessions.size(); i++) {
+                IntVar hourVar = sessionHourVars.get(allSessions.get(i).getIndex());
+                hourBoolVars[i] = model.intEqView(hourVar, h);
+            }
+            model.sum(hourBoolVars, "=", hourCounts[h]).post();
+        }
+        
+        // Day distribution - Ensure sessions are distributed evenly across days
+        int totalSessions = allSessions.size();
+        int idealSessionsPerDay = (int) Math.ceil((double) totalSessions / DAYS_PER_WEEK);
+        
+        // Create a max difference variable to minimize the imbalance between days
+        IntVar maxDayDiff = model.intVar("maxDayDiff", 0, totalSessions);
+        
+        // For each day, constrain the count to be close to the ideal
+        for (int d = 0; d < DAYS_PER_WEEK; d++) {
+            // Create target variable for this day
+            IntVar targetDayVar = model.intVar("targetDay_" + d, idealSessionsPerDay);
+            
+            // Soft constraint to encourage approaching the target
+            IntVar dayDiff = model.intVar("dayDiff_" + d, 0, totalSessions);
+            model.distance(dayCounts[d], targetDayVar, "=", dayDiff).post();
+            
+            // Link to max difference to minimize the worst imbalance
+            model.arithm(dayDiff, "<=", maxDayDiff).post();
+        }
+        
+        // Set objective to minimize day imbalance
+        model.setObjective(Model.MINIMIZE, maxDayDiff);
+        
+        // 6. Try to distribute the hours more evenly by encouraging sessions to spread 
+        // through specific hour slots
+        int idealSessionsPerHour = (int) Math.ceil((double) totalSessions / HOURS_PER_DAY);
+        
+        // Create a max difference variable to minimize the imbalance between hours
+        IntVar maxHourDiff = model.intVar("maxHourDiff", 0, totalSessions);
+        
+        for (int h = 0; h < HOURS_PER_DAY; h++) {
+            // Try to keep the number of sessions per hour close to the ideal
+            // We use a preference for each hour to help distribute sessions better
+            double preference = 1.0;
+            
+            // Make middle hours (11am-2pm) slightly more preferable
+            if (h >= 2 && h <= 5) {
+                preference = 1.2;
+            }
+            
+            int targetSessionsForHour = (int) Math.round(idealSessionsPerHour * preference);
+            
+            // Create an IntVar for the target value since distance requires IntVar, not int
+            IntVar targetVar = model.intVar("target_" + h, targetSessionsForHour);
+            
+            // Soft constraint to encourage approaching this target
+            IntVar diff = model.intVar("hourDiff_" + h, 0, totalSessions);
+            model.distance(hourCounts[h], targetVar, "=", diff).post();
+            
+            // Link to max difference to minimize the worst imbalance
+            model.arithm(diff, "<=", maxHourDiff).post();
+        }
+        
+        // Also account for hour distribution in the objective
+        // Create a combined objective to try to balance both day and hour distribution
+        IntVar combinedDiff = model.intVar("combinedDiff", 0, totalSessions * 2);
+        model.arithm(maxDayDiff, "+", maxHourDiff, "=", combinedDiff).post();
+        model.setObjective(Model.MINIMIZE, combinedDiff);
     }
 
     private void addManualSessionsForCourse(Course course, List<Resource> resources, List<Lecturer> lecturers, Timetable timetable) {
         Log.d(TAG, "Manually adding sessions for course: " + course.getName());
         
-        // Find a suitable resource and lecturer
-        Resource selectedResource = null;
-        Lecturer selectedLecturer = null;
+        // Find appropriate resource and lecturer
+        Resource resource = null;
+        Lecturer lecturer = null;
         
-        // Find a resource with matching type if available
-        String requiredType = "LECTURE_HALL"; // Default to lecture hall
-        if (course.getCode() != null && course.getCode().contains("LAB")) {
-            requiredType = "LAB";
-        }
-        
-        // Try to find a compatible resource
-        for (Resource resource : resources) {
-            if (resource.getType() != null && resource.getType().equalsIgnoreCase(requiredType)) {
-                selectedResource = resource;
-                break;
+        // If course has assigned resource/lecturer, use those
+        if (course.getAssignedResourceId() != null && !course.getAssignedResourceId().isEmpty()) {
+            for (Resource r : resources) {
+                if (r.getId().equals(course.getAssignedResourceId())) {
+                    resource = r;
+                    break;
+                }
             }
         }
         
-        // If no matching resource was found, use the first one
-        if (selectedResource == null && !resources.isEmpty()) {
-            selectedResource = resources.get(0);
+        if (course.getAssignedLecturerId() != null && !course.getAssignedLecturerId().isEmpty()) {
+            for (Lecturer l : lecturers) {
+                if (l.getId().equals(course.getAssignedLecturerId())) {
+                    lecturer = l;
+                    break;
+                }
+            }
         }
         
-        // Use the first lecturer
-        if (!lecturers.isEmpty()) {
-            selectedLecturer = lecturers.get(0);
+        // If no assigned resource/lecturer, use the first available
+        if (resource == null && !resources.isEmpty()) {
+            resource = resources.get(0);
         }
         
-        // Check if we have the minimum requirements
-        if (selectedResource == null || selectedLecturer == null) {
-            Log.e(TAG, "Cannot manually schedule course " + course.getName() + " - no resources or lecturers available");
-            return;
+        if (lecturer == null && !lecturers.isEmpty()) {
+            lecturer = lecturers.get(0);
         }
         
-        // Find a free slot for the course
-        // Start with Monday at 8 AM and try each day/hour combination
-        boolean slotFound = false;
-        
-        // Try each day and hour until a free slot is found
-        for (int day = 0; day < DAYS_OF_WEEK.length && !slotFound; day++) {
-            for (int hour = 0; hour < 10 && !slotFound; hour++) {
-                // Check if this slot is free for the resource and lecturer
-                boolean slotIsFree = true;
+        if (resource != null && lecturer != null) {
+            int sessionsPerCourse = course.getRequiredSessionsPerWeek();
+            
+            // Get current session counts for better distribution
+            int[] sessionsByDay = new int[DAYS_PER_WEEK];
+            int[] sessionsByHour = new int[HOURS_PER_DAY];
+            
+            // Calculate current distributions from existing sessions
+            for (TimetableSession session : timetable.getSessions()) {
+                String day = session.getDayOfWeek();
+                int dayIndex = Arrays.asList(DAYS_OF_WEEK).indexOf(day);
                 
-                for (TimetableSession existingSession : timetable.getSessions()) {
-                    String dayOfWeek = DAYS_OF_WEEK[day];
-                    int startHour = START_HOUR + hour;
-                    String startTime = String.format("%02d:00", startHour);
+                if (dayIndex >= 0) {
+                    sessionsByDay[dayIndex]++;
                     
-                    if (existingSession.getDayOfWeek().equals(dayOfWeek) && 
-                        existingSession.getStartTime().equals(startTime)) {
-                        // Check if resource or lecturer is busy
-                        if (existingSession.getResourceId().equals(selectedResource.getId()) ||
-                            existingSession.getLecturerId().equals(selectedLecturer.getId())) {
-                            slotIsFree = false;
+                    // Extract hour from time format like "09:00"
+                    String startTime = session.getStartTime();
+                    if (startTime != null && startTime.length() >= 5) {
+                        try {
+                            int hour = Integer.parseInt(startTime.substring(0, 2));
+                            int hourIndex = hour - START_HOUR;
+                            if (hourIndex >= 0 && hourIndex < HOURS_PER_DAY) {
+                                sessionsByHour[hourIndex]++;
+                            }
+                        } catch (NumberFormatException e) {
+                            Log.e(TAG, "Error parsing time: " + startTime, e);
+                        }
+                    }
+                }
+            }
+            
+            // Spread the sessions evenly over days and hours
+            for (int i = 0; i < sessionsPerCourse; i++) {
+                TimetableSession session = new TimetableSession();
+                session.setId(UUID.randomUUID().toString());
+                session.setCourseId(course.getId());
+                session.setCourseName(course.getName());
+                session.setSessionType(course.getCode() != null ? course.getCode() : "LECTURE");
+                
+                // Find the day with fewest sessions
+                int minDaySessions = Integer.MAX_VALUE;
+                int bestDayIndex = 0;
+                
+                for (int d = 0; d < DAYS_PER_WEEK; d++) {
+                    if (sessionsByDay[d] < minDaySessions) {
+                        minDaySessions = sessionsByDay[d];
+                        bestDayIndex = d;
+                    }
+                }
+                
+                // Find the hour with fewest sessions
+                int minHourSessions = Integer.MAX_VALUE;
+                int bestHourIndex = 0;
+                
+                for (int h = 0; h < HOURS_PER_DAY; h++) {
+                    if (sessionsByHour[h] < minHourSessions) {
+                        minHourSessions = sessionsByHour[h];
+                        bestHourIndex = h;
+                    }
+                }
+                
+                // Set day and time for this session
+                String day = DAYS_OF_WEEK[bestDayIndex];
+                int hour = START_HOUR + bestHourIndex;
+                String formattedHour = String.format("%02d:00", hour);
+                
+                session.setDayOfWeek(day);
+                session.setStartTime(formattedHour);
+                session.setEndTime(calculateEndTime(formattedHour, 1));
+                session.setResourceId(resource.getId());
+                session.setResourceName(resource.getName());
+                session.setLecturerId(lecturer.getId());
+                session.setLecturerName(lecturer.getName());
+                
+                // Check for conflicts
+                boolean hasConflict = false;
+                
+                // Check for conflicts with existing sessions
+                for (TimetableSession existingSession : timetable.getSessions()) {
+                    if (existingSession.getDayOfWeek().equals(day) && 
+                        existingSession.getStartTime().equals(formattedHour) && 
+                        (existingSession.getResourceId().equals(resource.getId()) || 
+                         existingSession.getLecturerId().equals(lecturer.getId()))) {
+                        hasConflict = true;
+                        break;
+                    }
+                }
+                
+                // If conflict detected, try alternate hours
+                if (hasConflict) {
+                    // Try other hours on the same day first
+                    for (int h = 0; h < HOURS_PER_DAY; h++) {
+                        if (h == bestHourIndex) continue;
+                        
+                        int alternateHour = START_HOUR + h;
+                        String alternateFormattedHour = String.format("%02d:00", alternateHour);
+                        
+                        boolean alternateHasConflict = false;
+                        for (TimetableSession existingSession : timetable.getSessions()) {
+                            if (existingSession.getDayOfWeek().equals(day) &&
+                                existingSession.getStartTime().equals(alternateFormattedHour) && 
+                                (existingSession.getResourceId().equals(resource.getId()) || 
+                                 existingSession.getLecturerId().equals(lecturer.getId()))) {
+                                alternateHasConflict = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!alternateHasConflict) {
+                            session.setStartTime(alternateFormattedHour);
+                            session.setEndTime(calculateEndTime(alternateFormattedHour, 1));
+                            hasConflict = false;
                             break;
+                        }
+                    }
+                    
+                    // If still conflict, try another day
+                    if (hasConflict) {
+                        // Find the next best day
+                        int secondBestDayIndex = 0;
+                        int secondMinSessions = Integer.MAX_VALUE;
+                        
+                        for (int d = 0; d < DAYS_PER_WEEK; d++) {
+                            if (d != bestDayIndex && sessionsByDay[d] < secondMinSessions) {
+                                secondMinSessions = sessionsByDay[d];
+                                secondBestDayIndex = d;
+                            }
+                        }
+                        
+                        day = DAYS_OF_WEEK[secondBestDayIndex];
+                        session.setDayOfWeek(day);
+                        
+                        // Check all hours on this day for conflicts
+                        for (int h = 0; h < HOURS_PER_DAY; h++) {
+                            int alternateHour = START_HOUR + h;
+                            String alternateFormattedHour = String.format("%02d:00", alternateHour);
+                            
+                            boolean alternateHasConflict = false;
+                            for (TimetableSession existingSession : timetable.getSessions()) {
+                                if (existingSession.getDayOfWeek().equals(day) &&
+                                    existingSession.getStartTime().equals(alternateFormattedHour) && 
+                                    (existingSession.getResourceId().equals(resource.getId()) || 
+                                     existingSession.getLecturerId().equals(lecturer.getId()))) {
+                                    alternateHasConflict = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!alternateHasConflict) {
+                                session.setStartTime(alternateFormattedHour);
+                                session.setEndTime(calculateEndTime(alternateFormattedHour, 1));
+                                hasConflict = false;
+                                break;
+                            }
                         }
                     }
                 }
                 
-                // If slot is free, create a session
-                if (slotIsFree) {
-                    // Create session
-                    TimetableSession timetableSession = new TimetableSession();
-                    timetableSession.setId(UUID.randomUUID().toString());
-                    timetableSession.setCourseId(course.getId());
-                    timetableSession.setCourseName(course.getName());
-                    timetableSession.setSessionType(course.getCode() != null ? course.getCode() : "LECTURE");
+                // Only add if no conflict or conflict was resolved
+                if (!hasConflict) {
+                    timetable.addSession(session);
                     
-                    // Set day, hour, resource, and lecturer
-                    String dayOfWeek = DAYS_OF_WEEK[day];
-                    int startHour = START_HOUR + hour;
-                    String startTime = String.format("%02d:00", startHour);
-                    String endTime = String.format("%02d:00", startHour + 1);
+                    // Update counts for next iteration
+                    int usedDayIndex = Arrays.asList(DAYS_OF_WEEK).indexOf(day);
+                    sessionsByDay[usedDayIndex]++;
                     
-                    timetableSession.setDayOfWeek(dayOfWeek);
-                    timetableSession.setStartTime(startTime);
-                    timetableSession.setEndTime(endTime);
+                    int usedHour = Integer.parseInt(session.getStartTime().substring(0, 2));
+                    int usedHourIndex = usedHour - START_HOUR;
+                    sessionsByHour[usedHourIndex]++;
                     
-                    timetableSession.setResourceId(selectedResource.getId());
-                    timetableSession.setResourceName(selectedResource.getName());
-                    timetableSession.setLecturerId(selectedLecturer.getId());
-                    timetableSession.setLecturerName(selectedLecturer.getName());
-                    
-                    timetable.addSession(timetableSession);
-                    
-                    Log.d(TAG, "Manually scheduled " + course.getName() + " on " + dayOfWeek + " at " + startTime);
-                    slotFound = true;
+                    Log.d(TAG, "Added session for " + course.getName() + " on " + day + " at " + session.getStartTime());
+                } else {
+                    Log.w(TAG, "Couldn't resolve conflicts for session of " + course.getName());
                 }
             }
-        }
-        
-        if (!slotFound) {
-            Log.w(TAG, "Could not find free slot for " + course.getName() + " - adding anyway in first slot");
-            
-            // Create session without checking for conflicts
-            TimetableSession timetableSession = new TimetableSession();
-            timetableSession.setId(UUID.randomUUID().toString());
-            timetableSession.setCourseName(course.getName());
-            timetableSession.setCourseId(course.getId());
-            timetableSession.setSessionType(course.getCode() != null ? course.getCode() : "LECTURE");
-            
-            // Set to Monday at 8 AM by default
-            timetableSession.setDayOfWeek(DAYS_OF_WEEK[0]);
-            timetableSession.setStartTime(String.format("%02d:00", START_HOUR));
-            timetableSession.setEndTime(String.format("%02d:00", START_HOUR + 1));
-            
-            timetableSession.setResourceId(selectedResource.getId());
-            timetableSession.setResourceName(selectedResource.getName());
-            timetableSession.setLecturerId(selectedLecturer.getId());
-            timetableSession.setLecturerName(selectedLecturer.getName());
-            
-            timetable.addSession(timetableSession);
-            
-            Log.d(TAG, "Force scheduled " + course.getName() + " on Monday at 8:00");
+        } else {
+            Log.e(TAG, "Could not add manual sessions for " + course.getName() + ": no resource or lecturer available");
         }
     }
 

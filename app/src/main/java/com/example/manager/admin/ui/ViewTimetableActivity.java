@@ -9,6 +9,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -17,6 +18,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.graphics.Insets;
@@ -25,6 +27,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.manager.R;
 import com.example.manager.timetable.TimetableSession;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -188,9 +191,8 @@ public class ViewTimetableActivity extends AppCompatActivity {
         // Clear the existing content first
         timetableContentLayout.removeAllViews();
         
-        // Create header row with day names
-        LinearLayout headerRow = createHeaderRow();
-        timetableContentLayout.addView(headerRow);
+        // Skip adding a header row since it already exists in the XML layout
+        // The header row with days was defined twice - once in XML and once in code
         
         // Create time slots (rows)
         for (int hour = START_HOUR; hour < END_HOUR; hour++) {
@@ -238,7 +240,45 @@ public class ViewTimetableActivity extends AppCompatActivity {
     }
     
     private void addCourseSummary(Map<String, Integer> sessionsPerCourse) {
-        // Create a summary layout
+        // Create a collapsible summary panel
+        
+        // Create the parent container for the collapsible panel
+        LinearLayout summaryContainer = new LinearLayout(this);
+        summaryContainer.setOrientation(LinearLayout.VERTICAL);
+        summaryContainer.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        
+        // Create a handle/header for the expandable panel
+        LinearLayout headerLayout = new LinearLayout(this);
+        headerLayout.setOrientation(LinearLayout.HORIZONTAL);
+        headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dpToPx(30)));
+        headerLayout.setBackgroundColor(Color.parseColor("#6200EE"));
+        headerLayout.setGravity(Gravity.CENTER);
+        
+        // Add a visual indicator for dragging
+        View dragHandle = new View(this);
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
+                dpToPx(40),
+                dpToPx(5));
+        dragHandle.setLayoutParams(handleParams);
+        dragHandle.setBackgroundColor(Color.WHITE);
+        headerLayout.addView(dragHandle);
+        
+        // Add the header text
+        TextView headerText = new TextView(this);
+        headerText.setText("Drag to show course summary");
+        headerText.setTextColor(Color.WHITE);
+        headerText.setTextSize(12);
+        headerText.setPadding(0, dpToPx(5), 0, 0);
+        headerLayout.addView(headerText);
+        
+        // Add the header to the container
+        summaryContainer.addView(headerLayout);
+        
+        // Create the content panel
         LinearLayout summaryLayout = new LinearLayout(this);
         summaryLayout.setOrientation(LinearLayout.VERTICAL);
         summaryLayout.setLayoutParams(new LinearLayout.LayoutParams(
@@ -246,6 +286,7 @@ public class ViewTimetableActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         summaryLayout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16));
         summaryLayout.setBackgroundColor(Color.parseColor("#F8F8F8"));
+        summaryLayout.setVisibility(View.GONE); // Initially hidden
         
         // Add a title
         TextView titleView = new TextView(this);
@@ -304,39 +345,47 @@ public class ViewTimetableActivity extends AppCompatActivity {
             summaryLayout.addView(courseRow);
         }
         
-        // Add the summary below the timetable by adding it directly to main layout
-        // Since timetableMainLayout doesn't exist, use the parent constraint layout (main)
-        View mainLayout = findViewById(R.id.main);
-        if (mainLayout instanceof ViewGroup) {
-            // Add it after the timetable scroll view so it appears at the bottom
-            View backButton = findViewById(R.id.backButton);
-            ViewGroup parent = (ViewGroup) mainLayout;
-            
-            // Add before the back button
-            int backButtonIndex = -1;
-            for (int i = 0; i < parent.getChildCount(); i++) {
-                if (parent.getChildAt(i).getId() == R.id.backButton) {
-                    backButtonIndex = i;
-                    break;
+        // Add summary content to the container
+        summaryContainer.addView(summaryLayout);
+        
+        // Set up touch handling to expand/collapse panel when dragged
+        headerLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Toggle visibility of the summary panel
+                if (summaryLayout.getVisibility() == View.VISIBLE) {
+                    summaryLayout.setVisibility(View.GONE);
+                    headerText.setText("Drag to show course summary");
+                } else {
+                    summaryLayout.setVisibility(View.VISIBLE);
+                    headerText.setText("Tap to hide course summary");
                 }
             }
+        });
+        
+        // Add the summary panel to the main layout at the bottom
+        ConstraintLayout mainLayout = (ConstraintLayout) findViewById(R.id.main);
+        if (mainLayout != null) {
+            ConstraintLayout.LayoutParams params = new ConstraintLayout.LayoutParams(
+                    ConstraintLayout.LayoutParams.MATCH_PARENT,
+                    ConstraintLayout.LayoutParams.WRAP_CONTENT);
             
-            if (backButtonIndex != -1) {
-                parent.addView(summaryLayout, backButtonIndex);
-                
-                // Update the constraint for the back button to be below the summary
-                ConstraintLayout.LayoutParams backParams = 
-                    (ConstraintLayout.LayoutParams) backButton.getLayoutParams();
-                backParams.topToBottom = summaryLayout.getId();
-                backButton.setLayoutParams(backParams);
-            } else {
-                // If back button not found, just add to the end
-                parent.addView(summaryLayout);
-            }
+            params.bottomToTop = R.id.backButton;
+            params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID;
+            params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;
             
-            Log.d(TAG, "Added course summary to main layout");
+            mainLayout.addView(summaryContainer, params);
+            
+            // Update back button constraints
+            View backButton = findViewById(R.id.backButton);
+            ConstraintLayout.LayoutParams backParams = 
+                (ConstraintLayout.LayoutParams) backButton.getLayoutParams();
+            backParams.topToBottom = summaryContainer.getId();
+            backButton.setLayoutParams(backParams);
+            
+            Log.d(TAG, "Added collapsible course summary panel");
         } else {
-            Log.e(TAG, "Could not find appropriate container for course summary");
+            Log.e(TAG, "Could not find main layout to add summary panel");
         }
     }
     
@@ -469,25 +518,30 @@ public class ViewTimetableActivity extends AppCompatActivity {
         cellView.setLayoutParams(new LinearLayout.LayoutParams(
                 dpToPx(DAY_CELL_WIDTH_DP),
                 LinearLayout.LayoutParams.MATCH_PARENT));
-        cellView.setGravity(Gravity.CENTER);
-        cellView.setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4));
+        cellView.setBackgroundResource(R.drawable.cell_border);
         
-        String courseId = session.getCourseId();
-        String displayText = getCourseAbbreviation(session.getCourseName()) + "\n" + 
-                             session.getLecturerName() + "\n" + 
-                             session.getResourceName();
+        // Check if this cell is the first hour of a multi-hour session
+        int sessionStartHour = parseHour(session.getStartTime());
         
-        cellView.setText(displayText);
-        cellView.setTextColor(Color.WHITE);
-        
-        // Get or create a color for this course
-        int backgroundColor = getCourseColor(courseId);
-        cellView.setBackgroundColor(backgroundColor);
-        
-        // For multi-hour sessions, only show content in the first cell
-        if (parseHour(session.getStartTime()) != hour) {
-            cellView.setText("");
+        // Only show content in the first cell of a multi-hour session
+        if (sessionStartHour == hour) {
+            // Generate or retrieve a color for this course
+            String courseId = session.getCourseId();
+            int backgroundColor = getCourseColor(courseId);
+            
+            // Set the text to display
+            cellView.setText(session.getCourseName());
+            cellView.setTextColor(Color.WHITE);
+            cellView.setBackgroundColor(backgroundColor);
+            cellView.setGravity(Gravity.CENTER);
+            cellView.setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2));
+        } else {
+            // For continuation cells, just use the background color
+            cellView.setBackgroundColor(getCourseColor(session.getCourseId()));
         }
+        
+        // Add click listener to show session details
+        cellView.setOnClickListener(v -> showSessionDetails(session));
         
         return cellView;
     }
@@ -530,6 +584,11 @@ public class ViewTimetableActivity extends AppCompatActivity {
             sessionView.setPadding(dpToPx(2), dpToPx(1), dpToPx(2), dpToPx(1));
             sessionView.setMaxLines(2);
             sessionView.setEllipsize(TextUtils.TruncateAt.END);
+            
+            // Add click listener to show session details
+            final TimetableSession finalSession = session;
+            sessionView.setOnClickListener(v -> showSessionDetails(finalSession));
+            
             containerLayout.addView(sessionView);
         }
         
@@ -548,6 +607,9 @@ public class ViewTimetableActivity extends AppCompatActivity {
             moreIndicator.setTextSize(8);
             moreIndicator.setTextColor(Color.RED);
             containerLayout.addView(moreIndicator);
+            
+            // Add click listener to show all sessions in this time slot
+            moreIndicator.setOnClickListener(v -> showAllSessionsInTimeSlot(sessions));
         }
         
         return containerLayout;
@@ -632,5 +694,210 @@ public class ViewTimetableActivity extends AppCompatActivity {
             Log.e(TAG, "Error parsing time: " + timeString, e);
             return -1;
         }
+    }
+    
+    /**
+     * Display a dialog with detailed information about a selected session
+     */
+    private void showSessionDetails(TimetableSession session) {
+        // Create an AlertDialog to show session details
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Class Details");
+        
+        // Create the content view
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8));
+        
+        // Add a colored header for the course name
+        TextView headerView = new TextView(this);
+        headerView.setText(session.getCourseName());
+        headerView.setTextSize(18);
+        headerView.setTypeface(null, Typeface.BOLD);
+        headerView.setTextColor(Color.WHITE);
+        headerView.setBackgroundColor(getCourseColor(session.getCourseId()));
+        headerView.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16));
+        headerView.setGravity(Gravity.CENTER);
+        contentLayout.addView(headerView);
+        
+        // Add course details
+        addDetailRow(contentLayout, "Time", session.getStartTime() + " - " + session.getEndTime());
+        addDetailRow(contentLayout, "Day", session.getDayOfWeek());
+        addDetailRow(contentLayout, "Lecturer", session.getLecturerName());
+        addDetailRow(contentLayout, "Location", session.getResourceName());
+        
+        // Add any additional details you want to display
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(contentLayout);
+        
+        builder.setView(scrollView);
+        builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // Make sure the dialog doesn't get too tall (limit to 80% of screen height)
+        WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+        layoutParams.copyFrom(dialog.getWindow().getAttributes());
+        layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT;
+        layoutParams.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.8);
+        dialog.getWindow().setAttributes(layoutParams);
+    }
+    
+    /**
+     * Get a course code from the course ID
+     * If the course ID appears to be a code already, use it directly
+     * Otherwise, create a code based on the ID
+     */
+    private String getCourseCode(String courseId) {
+        if (courseId == null || courseId.isEmpty()) {
+            return "N/A";
+        }
+        
+        // If the courseId is already in a code-like format (contains numbers), use it
+        if (courseId.matches(".*\\d.*")) {
+            return courseId.toUpperCase();
+        }
+        
+        // Otherwise, generate a simple code based on the ID
+        // Take first 3 letters and add a sequence number
+        String prefix = courseId.length() > 3 ? courseId.substring(0, 3) : courseId;
+        return prefix.toUpperCase() + "-" + Math.abs(courseId.hashCode() % 1000);
+    }
+    
+    /**
+     * Display a dialog showing all sessions in a particular time slot
+     */
+    private void showAllSessionsInTimeSlot(List<TimetableSession> sessions) {
+        // Create an AlertDialog to show all sessions
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("All Classes in This Time Slot");
+        
+        // Create the content view
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8));
+        
+        // Create a reference to the dialog that will be created
+        final AlertDialog[] dialogRef = new AlertDialog[1];
+        
+        // Add details for each session
+        for (TimetableSession session : sessions) {
+            // Add a colored header for the course name
+            TextView headerView = new TextView(this);
+            headerView.setText(session.getCourseName());
+            headerView.setTextSize(16);
+            headerView.setTypeface(null, Typeface.BOLD);
+            headerView.setTextColor(Color.WHITE);
+            headerView.setBackgroundColor(getCourseColor(session.getCourseId()));
+            headerView.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+            headerView.setGravity(Gravity.CENTER);
+            
+            // Add some margin at the top if not the first item
+            if (sessions.indexOf(session) > 0) {
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                params.topMargin = dpToPx(16);
+                headerView.setLayoutParams(params);
+            }
+            
+            contentLayout.addView(headerView);
+            
+            // Add basic details
+            addDetailRow(contentLayout, "Lecturer", session.getLecturerName());
+            addDetailRow(contentLayout, "Location", session.getResourceName());
+            
+            // Add a view details button for this session
+            Button detailsButton = new Button(this);
+            detailsButton.setText("View Full Details");
+            detailsButton.setBackgroundColor(Color.parseColor("#6200EE"));
+            detailsButton.setTextColor(Color.WHITE);
+            LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            buttonParams.gravity = Gravity.END;
+            buttonParams.setMargins(0, dpToPx(4), 0, dpToPx(8));
+            detailsButton.setLayoutParams(buttonParams);
+            
+            final TimetableSession finalSession = session;
+            detailsButton.setOnClickListener(v -> {
+                // Dismiss this dialog and show details for the selected session
+                if (dialogRef[0] != null) {
+                    dialogRef[0].dismiss();
+                }
+                showSessionDetails(finalSession);
+            });
+            
+            contentLayout.addView(detailsButton);
+        }
+        
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(contentLayout);
+        
+        builder.setView(scrollView);
+        builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+        
+        AlertDialog dialog = builder.create();
+        dialogRef[0] = dialog;  // Store reference to the dialog
+        dialog.show();
+        
+        // Make sure the dialog doesn't get too tall (limit to 80% of screen height)
+        WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+        layoutParams.copyFrom(dialog.getWindow().getAttributes());
+        layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT;
+        layoutParams.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.8);
+        dialog.getWindow().setAttributes(layoutParams);
+    }
+    
+    /**
+     * Helper method to add a detail row to a layout
+     */
+    private void addDetailRow(LinearLayout parentLayout, String label, String value) {
+        if (value == null || value.isEmpty()) {
+            value = "Not specified";
+        }
+        
+        // Create a horizontal layout for this detail row
+        LinearLayout rowLayout = new LinearLayout(this);
+        rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+        rowLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        rowLayout.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+        
+        // Add the label
+        TextView labelView = new TextView(this);
+        labelView.setText(label + ":");
+        labelView.setLayoutParams(new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.4f));
+        labelView.setTextSize(14);
+        labelView.setTypeface(null, Typeface.BOLD);
+        labelView.setTextColor(Color.parseColor("#333333"));
+        rowLayout.addView(labelView);
+        
+        // Add the value
+        TextView valueView = new TextView(this);
+        valueView.setText(value);
+        valueView.setLayoutParams(new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.6f));
+        valueView.setTextSize(14);
+        valueView.setTextColor(Color.parseColor("#666666"));
+        rowLayout.addView(valueView);
+        
+        // Add a separator line
+        View separator = new View(this);
+        separator.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1));
+        separator.setBackgroundColor(Color.parseColor("#DDDDDD"));
+        
+        // Add both views to the parent layout
+        parentLayout.addView(rowLayout);
+        parentLayout.addView(separator);
     }
 }
