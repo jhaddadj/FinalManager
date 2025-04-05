@@ -18,6 +18,18 @@
     <string name="forgot_password">Forget password</string>
     <string name="enter_email">Enter your email to recover your password</string>
     <string name="send_recovery_email">Send Recovery Email</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    
+    <!-- Solver descriptions -->
+    <string name="simple_solver_name">Simple Solver</string>
+    <string name="choco_solver_name">Choco Solver</string>
+    <string name="simple_solver_desc">Fast greedy algorithm that works on all devices. May produce sub-optimal solutions.</string>
+    <string name="choco_solver_desc">Advanced constraint programming that finds optimal solutions. May be slower but produces better timetables.</string>
+    <string name="solver_selection_title">Solver Type:</string>
     <string-array name="resource_types">
         <item>Room</item>
         <item>Facility</item>

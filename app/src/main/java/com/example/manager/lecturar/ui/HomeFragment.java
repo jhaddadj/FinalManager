@@ -19,6 +19,7 @@ import com.example.manager.admin.adapter.TimetableAdapter;
 import com.example.manager.admin.model.TimetableEntry;
 import com.example.manager.admin.ui.AddScheduleActivity;
 import com.example.manager.admin.ui.TimetableInitializationActivity;
+import com.example.manager.lecturar.ui.ViewScheduleActivity;
 import com.example.manager.databinding.FragmentHomeBinding;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -45,7 +46,7 @@ public class HomeFragment extends Fragment {
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
 
-    // TODO: Rename and change types of parameters
+    // Fragment parameters for navigation
     private String mParam1;
     private String mParam2;
 
@@ -54,14 +55,8 @@ public class HomeFragment extends Fragment {
     }
 
     /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment HomeFragment.
+     * Creates a new instance of the HomeFragment with specified parameters
      */
-    // TODO: Rename and change types and number of parameters
     public static HomeFragment newInstance(String param1, String param2) {
         HomeFragment fragment = new HomeFragment();
         Bundle args = new Bundle();

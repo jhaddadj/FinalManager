@@ -22,7 +22,7 @@
         android:id="@+id/addResourceButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:contentDescription="Add Resource"
+        android:contentDescription="Add Room"
         android:src="@drawable/baseline_add_circle_24"
         android:layout_margin="10dp"
         app:layout_constraintBottom_toBottomOf="parent"

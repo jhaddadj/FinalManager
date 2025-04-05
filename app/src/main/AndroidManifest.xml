@@ -22,6 +22,12 @@
         android:theme="@style/Theme.Manager"
         tools:targetApi="31">
         <activity
+            android:name=".admin.ui.ViewTimetableActivity"
+            android:exported="false" />
+        <activity
+            android:name=".admin.ui.ConstraintSolverActivity"
+            android:exported="false" />
+        <activity
             android:name=".stduent.ui.ViewScheduleStudentActivity"
             android:exported="false" />
         <activity
@@ -63,10 +69,10 @@
             android:name=".admin.ui.TimetableInitializationActivity"
             android:exported="false" />
         <activity
-            android:name=".admin.ui.ConstraintInputActivity"
+            android:name=".admin.ui.ResourceManagementActivity"
             android:exported="false" />
         <activity
-            android:name=".admin.ui.ResourceManagementActivity"
+            android:name=".admin.ui.CourseManagementActivity"
             android:exported="false" />
         <activity
             android:name=".stduent.ui.StudentMainActivity"

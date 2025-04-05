@@ -27,26 +27,33 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+/**
+ * LoginActivity handles user authentication for all types of users in the FinalManager app.
+ * This activity verifies user credentials against Firebase Authentication,
+ * checks the user's role in the database, and redirects to the appropriate main activity
+ * based on role (admin, lecturer, or student).
+ */
 public class LoginActivity extends AppCompatActivity {
 
     private ActivityLoginBinding binding;
     private FirebaseAuth auth;
-    private String roles;
+    private String roles; // Stores the role type from intent (1=admin, 2=lecturer, 3=student)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
+        EdgeToEdge.enable(this); // Enable edge-to-edge display for modern UI appearance
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         auth = FirebaseAuth.getInstance();
-        roles = getIntent().getStringExtra("role");
+        roles = getIntent().getStringExtra("role"); // Get role type from intent
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
+        // Set up click listeners for all buttons and text views
         binding.loginButton.setOnClickListener(v -> loginUser());
         binding.registerText.setOnClickListener(v -> {
             if ("1".equals(roles)) {
@@ -70,6 +77,11 @@ public class LoginActivity extends AppCompatActivity {
         binding.forgotPasswordText.setOnClickListener(v -> showForgotPasswordDialog());
 
     }
+    
+    /**
+     * Shows a dialog for the forgot password functionality.
+     * Allows users to enter their email address to receive password reset instructions.
+     */
     private void showForgotPasswordDialog() {
         // Create a dialog box
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -104,6 +116,12 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Sends a password reset email to the user's email address.
+     * 
+     * @param email The email address to send the password reset instructions to
+     * @param dialog The dialog to dismiss on successful email send
+     */
     private void sendPasswordRecoveryEmail(String email, AlertDialog dialog) {
         auth.sendPasswordResetEmail(email)
                 .addOnCompleteListener(task -> {
@@ -118,8 +136,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
 
-
-
+    /**
+     1 Authenticates the user using Firebase Authentication.
+     2 Validates input fields, shows progress indicator, and calls
+     3 Firebase Authentication to sign in the user.
+     */
     private void loginUser() {
 
         String email = binding.emailEditText.getText().toString().trim();
@@ -147,6 +168,11 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     1Fetches user data from Firebase Realtime Database after successful authentication.
+     2 Verifies the user's role and redirects to the appropriate activity.
+     3 Also performs validation to ensure users only access their designated interfaces.
+     */
     private void fetchUserDataAndSave() {
         DatabaseReference userRef = FirebaseDatabase.getInstance()
                 .getReference("Users")
@@ -160,7 +186,7 @@ public class LoginActivity extends AppCompatActivity {
 
                     if ("admin".equals(role)) {
                         if ("1".equals(roles)) {
-
+                            // Role matches selected interface (admin)
                             redirectToAdmin();
                         }else {
                             Toast.makeText(LoginActivity.this, "Invalid User Type", Toast.LENGTH_SHORT).show();
@@ -171,7 +197,7 @@ public class LoginActivity extends AppCompatActivity {
                         }
                     } else if ("lecture".equals(role)) {
                         if ("2".equals(roles)) {
-
+                            // Role matches selected interface (lecturer)
                             redirectToLecturer();
                         }else {
                             Toast.makeText(LoginActivity.this, "Invalid User Type", Toast.LENGTH_SHORT).show();
@@ -181,7 +207,7 @@ public class LoginActivity extends AppCompatActivity {
                         }
                     } else if ("student".equals(role)) {
                         if ("3".equals(roles)) {
-
+                            // Role matches selected interface (student)
                             redirectToStudent();
                         }else {
                             Toast.makeText(LoginActivity.this, "Invalid User Type", Toast.LENGTH_SHORT).show();
@@ -215,7 +241,10 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-
+    /**
+     1 Redirects an authenticated admin user to the AdminMainActivity.
+     2 Clears the activity stack to prevent going back to login.
+     */
     private void redirectToAdmin() {
         Intent intent = new Intent(LoginActivity.this, AdminMainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -224,6 +253,9 @@ public class LoginActivity extends AppCompatActivity {
         finish();
     }
 
+    /**
+     same but for lecture
+     */
     private void redirectToLecturer() {
         Intent intent = new Intent(LoginActivity.this, LecturerMainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -232,6 +264,9 @@ public class LoginActivity extends AppCompatActivity {
         finish();
     }
 
+    /**
+     same but for student
+     */
     private void redirectToStudent() {
         Intent intent = new Intent(LoginActivity.this, StudentMainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);

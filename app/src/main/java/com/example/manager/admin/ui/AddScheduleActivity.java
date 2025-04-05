@@ -14,11 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.manager.R;
-import com.example.manager.admin.adapter.CommentAdapter;
-import com.example.manager.admin.model.Comment;
 import com.example.manager.databinding.ActivityAddScheduleBinding;
 import com.example.manager.lecturar.ui.ViewScheduleActivity;
 import com.example.manager.model.Lecturer;
@@ -49,7 +46,6 @@ public class AddScheduleActivity extends AppCompatActivity {
     private Calendar endDateCalendar = Calendar.getInstance();
 
     private List<String> filteredLecturerIds = new ArrayList<>();
-
 
     private List<String> lecturerIds = new ArrayList<>();
     private List<String> lecContact = new ArrayList<>();
@@ -82,13 +78,8 @@ public class AddScheduleActivity extends AppCompatActivity {
 
         databaseReference = FirebaseDatabase.getInstance().getReference();
 
-        //    loadLecturers();
-
         setupDayCheckBoxListeners();
         setupDatePickers();
-
-        binding.commentsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        binding.commentsRecyclerView.setHasFixedSize(true);
 
         binding.saveTimetableButton.setOnClickListener(v -> loadCoursesAndValidate());
         String courseId = getIntent().getStringExtra("courseId");
@@ -96,8 +87,7 @@ public class AddScheduleActivity extends AppCompatActivity {
             loadTimetableData(courseId);
             binding.startDateText.setHint("");
             binding.endDateText.setHint("");
-        }else {
-
+        } else {
             binding.main2.setVisibility(View.VISIBLE);
             binding.progressBar.setVisibility(View.INVISIBLE);
             setupTimeSlotPicker();
@@ -105,93 +95,60 @@ public class AddScheduleActivity extends AppCompatActivity {
             filterLecturersByPreferences();
             loadRooms();
         }
-
     }
 
-private void setupDatePickers() {
-    // Start Date Picker
-    binding.startDateText.setClickable(true);
-    binding.startDateText.setFocusable(true);
-    binding.startDateText.setOnClickListener(v -> {
-        DatePickerDialog startDatePickerDialog = new DatePickerDialog(
-                this,
-                (view, year, month, dayOfMonth) -> {
-                    startDateCalendar.set(year, month, dayOfMonth);
-                    String startDate = dayOfMonth + "/" + (month + 1) + "/" + year;
-                    binding.startDateText.setText(startDate);
+    private void setupDatePickers() {
+        // Start Date Picker
+        binding.startDateText.setClickable(true);
+        binding.startDateText.setFocusable(true);
+        binding.startDateText.setOnClickListener(v -> {
+            DatePickerDialog startDatePickerDialog = new DatePickerDialog(
+                    this,
+                    (view, year, month, dayOfMonth) -> {
+                        startDateCalendar.set(year, month, dayOfMonth);
+                        String startDate = dayOfMonth + "/" + (month + 1) + "/" + year;
+                        binding.startDateText.setText(startDate);
 
-                    // Enable end date selection
-                    binding.endDateText.setVisibility(View.VISIBLE);
-                    binding.endDateText.setClickable(true);
-                    binding.endDateText.setFocusable(true);
+                        // Enable end date selection
+                        binding.endDateText.setVisibility(View.VISIBLE);
+                        binding.endDateText.setClickable(true);
+                        binding.endDateText.setFocusable(true);
+                    },
+                    startDateCalendar.get(Calendar.YEAR),
+                    startDateCalendar.get(Calendar.MONTH),
+                    startDateCalendar.get(Calendar.DAY_OF_MONTH)
+            );
 
+            // Set minimum date to today
+            startDatePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            startDatePickerDialog.show();
+        });
 
+        // End Date Picker
+        binding.endDateText.setOnClickListener(v -> {
+            DatePickerDialog endDatePickerDialog = new DatePickerDialog(
+                    this,
+                    (view, year, month, dayOfMonth) -> {
+                        endDateCalendar.set(year, month, dayOfMonth);
+                        String endDate = dayOfMonth + "/" + (month + 1) + "/" + year;
+                        binding.endDateText.setText(endDate);
 
-                },
-                startDateCalendar.get(Calendar.YEAR),
-                startDateCalendar.get(Calendar.MONTH),
-                startDateCalendar.get(Calendar.DAY_OF_MONTH)
-        );
-
-        // Set minimum date to today
-        startDatePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
-        startDatePickerDialog.show();
-    });
-
-    // End Date Picker
-    binding.endDateText.setOnClickListener(v -> {
-        DatePickerDialog endDatePickerDialog = new DatePickerDialog(
-                this,
-                (view, year, month, dayOfMonth) -> {
-                    endDateCalendar.set(year, month, dayOfMonth);
-                    String endDate = dayOfMonth + "/" + (month + 1) + "/" + year;
-                    binding.endDateText.setText(endDate);
-
-                    // Validate end date
-                    if (endDateCalendar.before(startDateCalendar) || endDateCalendar.equals(startDateCalendar)) {
-                        Toast.makeText(this, "End date must be after start date", Toast.LENGTH_SHORT).show();
-
-                    }
-                },
-                endDateCalendar.get(Calendar.YEAR),
-                endDateCalendar.get(Calendar.MONTH),
-                endDateCalendar.get(Calendar.DAY_OF_MONTH)
-        );
-
-        // Set minimum date to start date + 1 day
-        endDatePickerDialog.getDatePicker().setMinDate(startDateCalendar.getTimeInMillis() + (24 * 60 * 60 * 1000));
-        endDatePickerDialog.show();
-    });
-}
-
-    private void loadComments(String courseId) {
-        DatabaseReference commentsRef = FirebaseDatabase.getInstance().getReference().child("comments").child(courseId);
-
-
-        commentsRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                List<Comment> commentsList = new ArrayList<>();
-                if (snapshot.exists()) {
-                    for (DataSnapshot commentSnapshot : snapshot.getChildren()) {
-                        Comment comment = commentSnapshot.getValue(Comment.class);
-                        if (comment != null) {
-                            commentsList.add(comment);
+                        // Validate end date
+                        if (endDateCalendar.before(startDateCalendar) || endDateCalendar.equals(startDateCalendar)) {
+                            Toast.makeText(this, "End date must be after start date", Toast.LENGTH_SHORT).show();
                         }
-                    }
+                    },
+                    endDateCalendar.get(Calendar.YEAR),
+                    endDateCalendar.get(Calendar.MONTH),
+                    endDateCalendar.get(Calendar.DAY_OF_MONTH)
+            );
 
-                    CommentAdapter adapter = new CommentAdapter(commentsList);
-                    binding.commentsRecyclerView.setAdapter(adapter);
-
-                    binding.linearLayout4.setVisibility(View.VISIBLE);
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-            }
+            // Set minimum date to start date + 1 day
+            endDatePickerDialog.getDatePicker().setMinDate(startDateCalendar.getTimeInMillis() + (24 * 60 * 60 * 1000));
+            endDatePickerDialog.show();
         });
     }
+    
     private void loadTimetableData(String courseId) {
         databaseReference.child("timetables").child(courseId).get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult().exists()) {
@@ -201,90 +158,136 @@ private void setupDatePickers() {
                 binding.startDateText.setText(snapshot.child("startDate").getValue(String.class));
                 binding.endDateText.setText(snapshot.child("endDate").getValue(String.class));
 
-                // Select lecturer and room based on their IDs
-                lecturerIdis = snapshot.child("lecturerId").getValue(String.class);
-                roomIdis = snapshot.child("roomId").getValue(String.class);
-                if (lecturerIdis != null && !lecturerIds.isEmpty()) {
-                    int lecturerIndex = lecturerIds.indexOf(lecturerIdis);
+                // Parse the time slot
+                String timeSlot = snapshot.child("timeSlot").getValue(String.class);
+                if (timeSlot != null && timeSlot.contains("-")) {
+                    String[] times = timeSlot.split("-");
+                    selectedStartTime = times[0].trim();
+                    selectedEndTime = times[1].trim();
+                }
+
+                // Set day checkboxes
+                setupDaysFromDatabase(snapshot);
+
+                // Get lecturer and room info
+                String lecturerId = snapshot.child("lecturerId").getValue(String.class);
+                String lecturerName = snapshot.child("lecturerName").getValue(String.class);
+                String roomId = snapshot.child("roomId").getValue(String.class);
+                String roomName = snapshot.child("roomName").getValue(String.class);
+
+                // First load all rooms and lecturers
+                loadRoomsAndLecturers(roomId, lecturerId, lecturerName, roomName);
+
+                // Make the form visible and hide progress bar
+                binding.main2.setVisibility(View.VISIBLE);
+                binding.progressBar.setVisibility(View.INVISIBLE);
+                
+                // Enable the save button
+                binding.saveTimetableButton.setEnabled(true);
+            }
+        });
+    }
+
+    // Method to setup days checkboxes from database values
+    private void setupDaysFromDatabase(DataSnapshot snapshot) {
+        // Reset all checkboxes first
+        binding.mondayCheckBox.setChecked(false);
+        binding.tuesdayCheckBox.setChecked(false);
+        binding.wednesdayCheckBox.setChecked(false);
+        binding.thursdayCheckBox.setChecked(false);
+        binding.fridayCheckBox.setChecked(false);
+
+        // Populate days checkboxes
+        List<String> days = (List<String>) snapshot.child("day").getValue();
+        if (days != null) {
+            for (String day : days) {
+                switch (day) {
+                    case "Monday":
+                        binding.mondayCheckBox.setChecked(true);
+                        break;
+                    case "Tuesday":
+                        binding.tuesdayCheckBox.setChecked(true);
+                        break;
+                    case "Wednesday":
+                        binding.wednesdayCheckBox.setChecked(true);
+                        break;
+                    case "Thursday":
+                        binding.thursdayCheckBox.setChecked(true);
+                        break;
+                    case "Friday":
+                        binding.fridayCheckBox.setChecked(true);
+                        break;
+                }
+            }
+        }
+    }
+
+    // Method to load rooms and lecturers and set selections
+    private void loadRoomsAndLecturers(String roomId, String lecturerId, String lecturerName, String roomName) {
+        // Load lecturers and set selection
+        filterLecturersByPreferences();
+        
+        // Load rooms and set selection
+        loadRooms();
+        
+        // Store the IDs for later selection after data loads
+        lecturerIdis = lecturerId;
+        roomIdis = roomId;
+        
+        // Set up listeners to select proper spinner items after data is loaded
+        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                // Select lecturer in spinner if ID exists
+                if (lecturerId != null && !lecturerIds.isEmpty()) {
+                    int lecturerIndex = lecturerIds.indexOf(lecturerId);
                     if (lecturerIndex >= 0) {
                         binding.lecturerSpinner.setSelection(lecturerIndex);
                     }
                 }
-
-                if (roomIdis != null && !roomIds.isEmpty()) {
-                    int roomIndex = roomIds.indexOf(roomIdis);
+                
+                // Select room in spinner if ID exists
+                if (roomId != null && !roomIds.isEmpty()) {
+                    int roomIndex = roomIds.indexOf(roomId);
                     if (roomIndex >= 0) {
                         binding.roomSpinner.setSelection(roomIndex);
                     }
                 }
+                
+                // Enable the save button now that everything is loaded
+                binding.saveTimetableButton.setEnabled(true);
+            }
 
-                binding.mondayCheckBox.setChecked(false);
-                binding.tuesdayCheckBox.setChecked(false);
-                binding.wednesdayCheckBox.setChecked(false);
-                binding.thursdayCheckBox.setChecked(false);
-                binding.fridayCheckBox.setChecked(false);
-
-
-                // Populate days checkboxes
-                List<String> days = (List<String>) snapshot.child("day").getValue();
-                if (days != null) {
-                    for (String day : days) {
-                        switch (day) {
-                            case "Monday":
-
-                                binding.mondayCheckBox.setChecked(true);
-                                break;
-                            case "Tuesday":
-                                binding.tuesdayCheckBox.setChecked(true);
-                                break;
-                            case "Wednesday":
-                                binding.wednesdayCheckBox.setChecked(true);
-                                break;
-                            case "Thursday":
-                                binding.thursdayCheckBox.setChecked(true);
-                                break;
-                            case "Friday":
-                                binding.fridayCheckBox.setChecked(true);
-                                break;
-                        }
-                    }
-                }
-                binding.main2.setVisibility(View.VISIBLE);
-                binding.progressBar.setVisibility(View.INVISIBLE);
-                setupTimeSlotPicker();
-                loadComments(courseId);
-
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(AddScheduleActivity.this, "Failed to load data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
-        filterLecturersByPreferences();
-        loadRooms();
     }
-
 
     private void setupDayCheckBoxListeners() {
         CompoundButton.OnCheckedChangeListener listener = (buttonView, isChecked) -> {
-            // Check if all checkboxes are unchecked
-            if (!binding.mondayCheckBox.isChecked() &&
-                    !binding.tuesdayCheckBox.isChecked() &&
-                    !binding.wednesdayCheckBox.isChecked() &&
-                    !binding.thursdayCheckBox.isChecked() &&
-                    !binding.fridayCheckBox.isChecked()) {
+            // Validate that at least one day is selected
+            if (!isChecked) {
+                boolean anyDaySelected = binding.mondayCheckBox.isChecked() ||
+                        binding.tuesdayCheckBox.isChecked() ||
+                        binding.wednesdayCheckBox.isChecked() ||
+                        binding.thursdayCheckBox.isChecked() ||
+                        binding.fridayCheckBox.isChecked();
 
-                // Automatically check all checkboxes
-                binding.mondayCheckBox.setChecked(true);
-                binding.tuesdayCheckBox.setChecked(true);
-                binding.wednesdayCheckBox.setChecked(true);
-                binding.thursdayCheckBox.setChecked(true);
-                binding.fridayCheckBox.setChecked(true);
+                if (!anyDaySelected) {
+                    Toast.makeText(this, "At least one day must be selected", Toast.LENGTH_SHORT).show();
+                    buttonView.setChecked(true);
+                    return;
+                }
+            }
 
-            } else {
-                // Reload rooms and filter lecturers when a checkbox is toggled
-                loadRooms();
+            // If day selection changes, re-filter lecturers
+            if (!selectedStartTime.isEmpty() && !selectedEndTime.isEmpty()) {
                 filterLecturersByPreferences();
             }
         };
 
-        // Attach the listener to each checkbox
         binding.mondayCheckBox.setOnCheckedChangeListener(listener);
         binding.tuesdayCheckBox.setOnCheckedChangeListener(listener);
         binding.wednesdayCheckBox.setOnCheckedChangeListener(listener);
@@ -292,23 +295,23 @@ private void setupDatePickers() {
         binding.fridayCheckBox.setOnCheckedChangeListener(listener);
     }
 
-
     private void setupTimeSlotPicker() {
         binding.classDurationEditText.setOnClickListener(v -> {
             TimePickerDialog startTimePicker = new TimePickerDialog(this, (view, hourOfDay, minute) -> {
                 selectedStartTime = formatTime(hourOfDay, minute);
 
-                TimePickerDialog endTimePicker = new TimePickerDialog(this, (view1, hourOfDay1, minute1) -> {
-                    selectedEndTime = formatTime(hourOfDay1, minute1);
+                // Show end time picker
+                TimePickerDialog endTimePicker = new TimePickerDialog(this, (view2, hourOfDay2, minute2) -> {
+                    selectedEndTime = formatTime(hourOfDay2, minute2);
 
-                    if (isValidTimeSlot(selectedStartTime, selectedEndTime)) {
-                        binding.classDurationEditText.setText(selectedStartTime + " - " + selectedEndTime);
-                        filterLecturersByPreferences();
-                        loadRooms();
-
-                    } else {
-                        Toast.makeText(this, "Invalid time slot. Please select between 9 AM and 2 PM.", Toast.LENGTH_SHORT).show();
+                    // Validate time range
+                    if (hourOfDay2 < hourOfDay || (hourOfDay2 == hourOfDay && minute2 <= minute)) {
+                        Toast.makeText(this, "End time must be after start time", Toast.LENGTH_SHORT).show();
+                        return;
                     }
+
+                    binding.classDurationEditText.setText(selectedStartTime + "-" + selectedEndTime);
+                    filterLecturersByPreferences();
                 }, 14, 0, true);
                 endTimePicker.show();
             }, 9, 0, true);
@@ -316,189 +319,140 @@ private void setupDatePickers() {
         });
     }
 
-    private void setupSpinners() {
-        binding.lecturerSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new ArrayList<>()));
-        binding.roomSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new ArrayList<>()));
-    }
-
     private String formatTime(int hourOfDay, int minute) {
         return String.format("%02d:%02d", hourOfDay, minute);
     }
 
-    private boolean isValidTimeSlot(String start, String end) {
-        return start.compareTo("09:00") >= 0 && end.compareTo("14:00") <= 0 && start.compareTo(end) < 0;
-    }
-
     private void loadCoursesAndValidate() {
-        binding.progressBar.setVisibility(View.VISIBLE);
-        binding.saveTimetableButton.setEnabled(false);
+        String courseName = binding.courseNameEditText.getText().toString().trim();
+        String timeSlot = binding.classDurationEditText.getText().toString().trim();
+        String startDate = binding.startDateText.getText().toString().trim();
+        String endDate = binding.endDateText.getText().toString().trim();
+
+        if (courseName.isEmpty() || timeSlot.isEmpty() || startDate.isEmpty() || endDate.isEmpty()) {
+            Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int selectedLecturerPosition = binding.lecturerSpinner.getSelectedItemPosition();
+        int selectedRoomPosition = binding.roomSpinner.getSelectedItemPosition();
+
+        if (selectedLecturerPosition < 0 || selectedRoomPosition < 0) {
+            Toast.makeText(this, "Please select a lecturer and room", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String selectedLecturerId = filteredLecturerIds.get(selectedLecturerPosition);
+        String selectedLecturerName = (String) binding.lecturerSpinner.getSelectedItem();
+        String selectedRoomId = filteredRoomIds.get(selectedRoomPosition);
+        String selectedRoomName = (String) binding.roomSpinner.getSelectedItem();
+
+        // Check for conflicting schedules
+        String courseId = getIntent().getStringExtra("courseId");
         databaseReference.child("timetables").get().addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
-                String courseId = getIntent().getStringExtra("courseId");
-                if (courseId != null) {
-                    validateRoomAvailabilityAndSave();
-
-                } else {
-                    for (DataSnapshot snapshot : task.getResult().getChildren()) {
-                        String existingCourseName = snapshot.child("courseName").getValue(String.class);
-
-                        if (binding.courseNameEditText.getText().toString().equalsIgnoreCase(existingCourseName)) {
-                            Toast.makeText(this, "Course name already exists. Please choose another name.", Toast.LENGTH_SHORT).show();
-                            binding.progressBar.setVisibility(View.INVISIBLE);
-                            binding.saveTimetableButton.setEnabled(true);
-                            return;
-                        }
-                    }
-                    validateRoomAvailabilityAndSave();
-                }
-            } else {
-                binding.progressBar.setVisibility(View.INVISIBLE);
-                binding.saveTimetableButton.setEnabled(true);
-            }
-        });
-    }
-
-    private void validateRoomAvailabilityAndSave() {
-        databaseReference.child("timetables").get().addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                String selectedRoomId = roomIds.get(binding.roomSpinner.getSelectedItemPosition());
-
+                boolean hasConflict = false;
                 for (DataSnapshot snapshot : task.getResult().getChildren()) {
-                    String roomId = snapshot.child("roomId").getValue(String.class);
-                    String timeSlot = snapshot.child("timeSlot").getValue(String.class);
-                    List<String> days = (List<String>) snapshot.child("day").getValue();
+                    // Skip the current course being edited
+                    if (courseId != null && snapshot.getKey().equals(courseId)) {
+                        continue;
+                    }
 
+                    String lecturerId = snapshot.child("lecturerId").getValue(String.class);
+                    String roomId = snapshot.child("roomId").getValue(String.class);
+                    String existingTimeSlot = snapshot.child("timeSlot").getValue(String.class);
+                    List<String> days = (List<String>) snapshot.child("day").getValue();
 
                 }
                 saveTimetableData();
             } else {
-                binding.progressBar.setVisibility(View.INVISIBLE);
-                binding.saveTimetableButton.setEnabled(true);
+                Toast.makeText(this, "Failed to validate schedule", Toast.LENGTH_SHORT).show();
             }
         });
     }
-
-    private void loadLecturers() {
-        databaseReference.child("preferences").get().addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                for (DataSnapshot snapshot : task.getResult().getChildren()) {
-                    String lecturerName = snapshot.child("lecName").getValue(String.class);
-                    String lecturerContact = snapshot.child("lecContact").getValue(String.class);
-                    lecturerIds.add(snapshot.getKey());
-                    lecturerNames.add(lecturerName);
-                    lecContact.add(lecturerContact);
-                }
-                updateLecturerSpinner();
-            }
-        });
-    }
-
-    private void updateLecturerSpinner() {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, lecturerNames);
-        binding.lecturerSpinner.setAdapter(adapter);
-    }
-
 
     private void loadRooms() {
         databaseReference.child("resources").get().addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
-                List<String> filteredRoomIds = new ArrayList<>();
-                List<String> filteredRoomNames = new ArrayList<>();
-                List<String> filteredRoomLocation = new ArrayList<>();
+                roomIds.clear();
+                roomNames.clear();
+                roomLocations.clear();
 
                 for (DataSnapshot snapshot : task.getResult().getChildren()) {
-                    String roomName = snapshot.child("name").getValue(String.class);
-                    String location = snapshot.child("location").getValue(String.class);
                     String roomId = snapshot.getKey();
-                    String adminId = snapshot.child("adminId").getValue(String.class);
-                    String available = snapshot.child("isAvailable").getValue(String.class);
-                    binding.saveTimetableButton.setEnabled(true);
-                    if (FirebaseAuth.getInstance().getCurrentUser().getUid().equals(adminId) && "yes".equalsIgnoreCase(available)) {
-                        filteredRoomIds.add(roomId);
-                        filteredRoomNames.add(roomName);
-                        filteredRoomLocation.add(location);
+                    String roomName = snapshot.child("roomName").getValue(String.class);
+                    String roomLocation = snapshot.child("roomLocation").getValue(String.class);
+
+                    roomIds.add(roomId);
+                    roomNames.add(roomName);
+                    roomLocations.add(roomLocation);
+                }
+
+                // Filter rooms based on selected time and days
+                filterRoomsByAvailability();
+            }
+        });
+    }
+
+    private void filterRoomsByAvailability() {
+        filteredRoomIds.clear();
+        filteredRoomNames.clear();
+
+        // If no time or day selection, show all rooms
+        if (selectedStartTime.isEmpty() || selectedEndTime.isEmpty() || getSelectedDays().isEmpty()) {
+            filteredRoomIds.addAll(roomIds);
+            filteredRoomNames.addAll(roomNames);
+            updateRoomSpinner();
+            return;
+        }
+
+        databaseReference.child("timetables").get().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                // Assume all rooms are available
+                List<String> unavailableRoomIds = new ArrayList<>();
+
+                for (DataSnapshot snapshot : task.getResult().getChildren()) {
+                    String roomId = snapshot.child("roomId").getValue(String.class);
+                    String courseTimeSlot = snapshot.child("timeSlot").getValue(String.class);
+                    List<String> courseDays = (List<String>) snapshot.child("day").getValue();
+
+                    // Skip if not related to our time/day selection
+                    if (roomId == null || courseTimeSlot == null || courseDays == null) {
+                        continue;
+                    }
+
+                    // Check for overlap
+                    if (hasTimeOverlap(courseTimeSlot, selectedStartTime + "-" + selectedEndTime) && hasDayOverlap(courseDays)) {
+                        unavailableRoomIds.add(roomId);
                     }
                 }
 
-                databaseReference.child("timetables").get().addOnCompleteListener(timetableTask -> {
-                    if (timetableTask.isSuccessful()) {
-                        List<String> roomsToRemove = new ArrayList<>();
-                        for (DataSnapshot timetableSnapshot : timetableTask.getResult().getChildren()) {
-                            String roomId = timetableSnapshot.child("roomId").getValue(String.class);
-                            String preferredHours = timetableSnapshot.child("timeSlot").getValue(String.class);
-
-                            List<String> assignedDays = (List<String>) timetableSnapshot.child("day").getValue();
-
-                            if (preferredHours != null) {
-                                String[] timeRange = preferredHours.split("-");
-                                if (timeRange.length == 2) {
-                                    String existingStartTime = timeRange[0];
-                                    String existingEndTime = timeRange[1];
-
-                                    if (roomId != null) {
-                                        boolean daysOverlap = matchesSelectedDays(assignedDays);
-                                        boolean timeOverlap = isTimeOverlap(selectedStartTime, selectedEndTime, existingStartTime, existingEndTime);
-
-                                        // Check if both time and day overlap
-                                        if (daysOverlap && !timeOverlap) {
-                                            String courseId = getIntent().getStringExtra("courseId");
-                                            if (courseId != null) {
-                                                if (!roomIdis.equalsIgnoreCase(roomId)) {
-                                                    roomsToRemove.add(roomId);
-                                                }
-                                            } else {
-                                                roomsToRemove.add(roomId);
-
-                                            }
-                                        }
-
-                                    }
-
-                                }
-                            }
-
-                            for (String roomIds : roomsToRemove) {
-                                int index = filteredRoomIds.indexOf(roomIds);
-                                if (index >= 0) {
-                                    filteredRoomIds.remove(index);
-                                    filteredRoomNames.remove(index);
-                                    filteredRoomLocation.remove(index);
-                                }
-                            }
-
-                            roomIds.clear();
-                            roomNames.clear();
-                            roomLocations.clear();
-                            roomIds.addAll(filteredRoomIds);
-                            roomNames.addAll(filteredRoomNames);
-                            roomLocations.addAll(filteredRoomLocation);
-
-                            updateRoomSpinner();
-                        }
+                // Add available rooms to filtered lists
+                for (int i = 0; i < roomIds.size(); i++) {
+                    String roomId = roomIds.get(i);
+                    if (!unavailableRoomIds.contains(roomId)) {
+                        filteredRoomIds.add(roomId);
+                        filteredRoomNames.add(roomNames.get(i));
                     }
-                });
+                }
 
-                // Check each room for overlapping schedules in the timetables
-
+                updateRoomSpinner();
             }
         });
     }
 
     private void updateRoomSpinner() {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, roomNames);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, filteredRoomNames);
         binding.roomSpinner.setAdapter(adapter);
     }
-
 
     private void filterLecturersByPreferences() {
         databaseReference.child("preferences").get().addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 List<Lecturer> lecturers = new ArrayList<>();
-                List<String> lecToRemove = new ArrayList<>();
-                List<String> filteredLecIds = new ArrayList<>();
+                filteredLecturerIds.clear();
                 List<String> filteredLecNames = new ArrayList<>();
                 List<String> filteredLecContact = new ArrayList<>();
-
 
                 // Step 1: Populate initial lecturer list based on preferences
                 for (DataSnapshot snapshot : task.getResult().getChildren()) {
@@ -506,58 +460,43 @@ private void setupDatePickers() {
                     String lecturerName = snapshot.child("lecName").getValue(String.class);
                     String lecturerContact = snapshot.child("lecContact").getValue(String.class);
 
-                    String preferredHours = snapshot.child("hours").getValue(String.class);
-                    List<String> preferredDays = (List<String>) snapshot.child("days").getValue();
-
-                    if (preferredDays != null && preferredHours != null) {
+                    if (lecturerId != null && lecturerName != null) {
+                        List<String> preferredDays = (List<String>) snapshot.child("day").getValue();
+                        String preferredHours = snapshot.child("times").getValue(String.class);
                         if (matchesSelectedDays(preferredDays)) {
                             int proximityScore = calculateProximity(preferredHours, selectedStartTime, selectedEndTime);
                             if (proximityScore != Integer.MAX_VALUE) {
-                                lecturers.add(new Lecturer(lecturerId, lecturerName,lecturerContact, proximityScore));
+                                lecturers.add(new Lecturer(lecturerId, lecturerName, lecturerContact, proximityScore));
                             }
                         }
                     }
                 }
 
-                // Step 2: Check if courseId is provided, and filter by timetable conflicts
+                // Step 2: Check timetable conflicts
+                databaseReference.child("timetables").get().addOnCompleteListener(conflictTask -> {
+                    if (conflictTask.isSuccessful()) {
+                        List<String> lecToRemove = new ArrayList<>();
 
-                databaseReference.child("timetables").get().addOnCompleteListener(timetableTask -> {
-                    if (timetableTask.isSuccessful()) {
-                        for (DataSnapshot timetableSnapshot : timetableTask.getResult().getChildren()) {
-                            String lecturerId = timetableSnapshot.child("lecturerId").getValue(String.class);
-                            String preferredHours = timetableSnapshot.child("timeSlot").getValue(String.class);
-                            List<String> assignedDays = (List<String>) timetableSnapshot.child("day").getValue();
+                        for (DataSnapshot snapshot : conflictTask.getResult().getChildren()) {
+                            String courseId = getIntent().getStringExtra("courseId");
+                            if (courseId != null && snapshot.getKey().equals(courseId)) {
+                                continue;  // Skip the current course
+                            }
 
-                            if (lecturerId != null && preferredHours != null && assignedDays != null) {
-                                String[] timeRange = preferredHours.split("-");
-                                if (timeRange.length == 2) {
-                                    String existingStartTime = timeRange[0];
-                                    String existingEndTime = timeRange[1];
+                            String lecId = snapshot.child("lecturerId").getValue(String.class);
+                            String timeSlot = snapshot.child("timeSlot").getValue(String.class);
+                            List<String> days = (List<String>) snapshot.child("day").getValue();
 
-                                    boolean daysOverlap = matchesSelectedDays(assignedDays);
-                                    boolean timeOverlap = isTimeOverlap(selectedStartTime, selectedEndTime, existingStartTime, existingEndTime);
-
-                                    // If both days and time overlap, mark the lecturer for removal
-                                    if (daysOverlap && !timeOverlap) {
-                                        String courseId = getIntent().getStringExtra("courseId");
-                                        if (courseId != null) {
-                                            if (!lecturerIdis.equalsIgnoreCase(lecturerId)) {
-
-                                                lecToRemove.add(lecturerId);
-                                            }
-                                        } else {
-                                            lecToRemove.add(lecturerId);
-
-                                        }
-
-                                    }
+                            if (lecId != null && timeSlot != null && days != null) {
+                                if (hasTimeOverlap(timeSlot, selectedStartTime + "-" + selectedEndTime) && hasDayOverlap(days)) {
+                                    lecToRemove.add(lecId);
                                 }
                             }
                         }
 
                         lecturers.removeIf(lecturer -> lecToRemove.contains(lecturer.getId()));
 
-                        updateLecturerLists(lecturers, filteredLecIds, filteredLecNames,filteredLecContact);
+                        updateLecturerLists(lecturers, filteredLecNames, filteredLecContact);
                     }
                 });
 
@@ -565,77 +504,68 @@ private void setupDatePickers() {
         });
     }
 
-    private void updateLecturerLists(List<Lecturer> lecturers, List<String> filteredLecIds, List<String> filteredLecNames,List<String> filteredLecContact) {
+    private void updateLecturerLists(List<Lecturer> lecturers, List<String> filteredLecNames, List<String> filteredLecContact) {
 
         Collections.sort(lecturers, Comparator.comparingInt(Lecturer::getProximityScore));
 
-        filteredLecIds.clear();
+        filteredLecturerIds.clear();
+        for (Lecturer lecturer : lecturers) {
+            filteredLecturerIds.add(lecturer.getId());
+        }
+
         filteredLecNames.clear();
+        for (Lecturer lecturer : lecturers) {
+            filteredLecNames.add(lecturer.getName());
+        }
+
         filteredLecContact.clear();
         for (Lecturer lecturer : lecturers) {
-            filteredLecIds.add(lecturer.getId());
-            filteredLecNames.add(lecturer.getName());
             filteredLecContact.add(lecturer.getContact());
         }
 
-        lecturerNames.clear();
-        lecturerIds.clear();
-        lecContact.clear();
-        lecturerNames.addAll(filteredLecNames);
-        lecturerIds.addAll(filteredLecIds);
-        lecContact.addAll(filteredLecContact);
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, lecturerNames);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, filteredLecNames);
         binding.lecturerSpinner.setAdapter(adapter);
 
     }
 
-
-
     private int calculateProximity(String preferredHours, String courseStartTime, String courseEndTime) {
         String[] times = preferredHours.split("-");
         if (times.length == 2) {
-            String lecturerStartTime = times[0];
-            String lecturerEndTime = times[1];
+            String prefStartTime = times[0].trim();
+            String prefEndTime = times[1].trim();
 
-            // Calculate proximity
-            int startDifference = getTimeDifferenceInMinutes(courseStartTime, lecturerStartTime);
-            int endDifference = getTimeDifferenceInMinutes(courseEndTime, lecturerEndTime);
+            // Check if course time is within preferred hours
+            if (isTimeAfterOrEqual(prefStartTime, courseStartTime) && isTimeBeforeOrEqual(prefEndTime, courseEndTime)) {
+                // Calculate proximity score (lower is better)
+                try {
+                    SimpleDateFormat format = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                    Date prefStart = format.parse(prefStartTime);
+                    Date prefEnd = format.parse(prefEndTime);
+                    Date courseStart = format.parse(courseStartTime);
+                    Date courseEnd = format.parse(courseEndTime);
 
-            // Total proximity score
-            return Math.abs(startDifference) + Math.abs(endDifference);
-        }
-        return Integer.MAX_VALUE;
-    }
-
-    private int getTimeDifferenceInMinutes(String time1, String time2) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            Date date1 = sdf.parse(time1);
-            Date date2 = sdf.parse(time2);
-
-            if (date1 != null && date2 != null) {
-                long diff = date1.getTime() - date2.getTime();
-
-                if (diff < 0) {
-                    diff += 24 * 60 * 60 * 1000;
+                    if (prefStart != null && prefEnd != null && courseStart != null && courseEnd != null) {
+                        long prefDuration = prefEnd.getTime() - prefStart.getTime();
+                        long courseDuration = courseEnd.getTime() - courseStart.getTime();
+                        return (int) Math.abs(prefDuration - courseDuration);
+                    }
+                } catch (ParseException e) {
+                    e.printStackTrace();
                 }
-
-                return (int) (diff / (1000 * 60));
+                return 0;  // Best match
             }
-        } catch (ParseException e) {
-            e.printStackTrace();
         }
-        return Integer.MAX_VALUE;
+        return Integer.MAX_VALUE;  // Not a match
     }
-
 
     private boolean matchesSelectedDays(List<String> preferredDays) {
         List<String> selectedDays = getSelectedDays();
         for (String day : selectedDays) {
-            if (preferredDays.contains(day)) return true;
+            if (!preferredDays.contains(day)) {
+                return false;
+            }
         }
-        return false;
+        return true;
     }
 
     private List<String> getSelectedDays() {
@@ -648,106 +578,114 @@ private void setupDatePickers() {
         return selectedDays;
     }
 
-    private boolean isTimeOverlap(String start1, String end1, String start2, String end2) {
+    private boolean hasTimeOverlap(String timeSlot1, String timeSlot2) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            String[] times1 = timeSlot1.split("-");
+            String[] times2 = timeSlot2.split("-");
 
-            Date startTime1 = sdf.parse(start1);
-            Date endTime1 = sdf.parse(end1);
-            Date startTime2 = sdf.parse(start2);
-            Date endTime2 = sdf.parse(end2);
+            String start1 = times1[0].trim();
+            String end1 = times1[1].trim();
+            String start2 = times2[0].trim();
+            String end2 = times2[1].trim();
 
-            if (startTime1 != null && endTime1 != null && startTime2 != null && endTime2 != null) {
-                return endTime1.compareTo(startTime2) <= 0 || endTime2.compareTo(startTime1) <= 0;
-            }
-        } catch (ParseException e) {
-            e.printStackTrace();
+            return !(isTimeBefore(end1, start2) || isTimeBefore(end2, start1));
+        } catch (Exception e) {
+            return false;
         }
-
-        return false;
     }
 
+    private boolean hasDayOverlap(List<String> days) {
+        List<String> selectedDays = getSelectedDays();
+        for (String day : selectedDays) {
+            if (days.contains(day)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private void saveTimetableData() {
         String courseName = binding.courseNameEditText.getText().toString();
         String duration = binding.classDurationEditText.getText().toString();
-        String start = binding.startDateText.getText().toString();
-        String end = binding.endDateText.getText().toString();
+        String startDate = binding.startDateText.getText().toString();
+        String endDate = binding.endDateText.getText().toString();
 
-        int lecturerPosition = binding.lecturerSpinner.getSelectedItemPosition();
-        int roomPosition = binding.roomSpinner.getSelectedItemPosition();
-        List<String> selectedDays = getSelectedDays();
-        if (courseName.isEmpty()) {
-            Toast.makeText(this, "Course name cannot be empty.", Toast.LENGTH_SHORT).show();
-            binding.progressBar.setVisibility(View.INVISIBLE);
-            binding.saveTimetableButton.setEnabled(true);
-            return;
+        int selectedLecturerPosition = binding.lecturerSpinner.getSelectedItemPosition();
+        int selectedRoomPosition = binding.roomSpinner.getSelectedItemPosition();
+
+        String lecturerId = filteredLecturerIds.get(selectedLecturerPosition);
+        String lecturerName = (String) binding.lecturerSpinner.getSelectedItem();
+        String roomId = filteredRoomIds.get(selectedRoomPosition);
+        String roomName = (String) binding.roomSpinner.getSelectedItem();
+        
+        // Get lecturer contact and room location
+        String lecturerContact = "";
+        String roomLocation = "";
+        
+        // Find the lecturer contact from the original arrays
+        if (lecturerIds.contains(lecturerId)) {
+            int index = lecturerIds.indexOf(lecturerId);
+            if (index >= 0 && index < lecContact.size()) {
+                lecturerContact = lecContact.get(index);
+            }
         }
-        if (start.isEmpty() || end.isEmpty()) {
-            Toast.makeText(this, "Date cannot be empty.", Toast.LENGTH_SHORT).show();
-            binding.progressBar.setVisibility(View.INVISIBLE);
-            binding.saveTimetableButton.setEnabled(true);
-            return;
+        
+        // Find the room location from the original arrays
+        if (roomIds.contains(roomId)) {
+            int index = roomIds.indexOf(roomId);
+            if (index >= 0 && index < roomLocations.size()) {
+                roomLocation = roomLocations.get(index);
+            }
         }
 
-        if (selectedDays.isEmpty()) {
-            selectedDays = Arrays.asList("Monday", "Tuesday", "Wednesday", "Thursday", "Friday");
-        }
+        // Create a map of timetable data
+        Map<String, Object> timetableData = new HashMap<>();
+        timetableData.put("courseName", courseName);
+        timetableData.put("timeSlot", duration);
+        timetableData.put("startDate", startDate);
+        timetableData.put("endDate", endDate);
+        timetableData.put("lecturerId", lecturerId);
+        timetableData.put("lecturerName", lecturerName);
+        timetableData.put("roomId", roomId);
+        timetableData.put("roomName", roomName);
+        timetableData.put("day", getSelectedDays());
+        timetableData.put("adminId", FirebaseAuth.getInstance().getCurrentUser().getUid());
+        timetableData.put("lecContact", lecturerContact);
+        timetableData.put("location", roomLocation);
 
-        if (selectedStartTime.isEmpty() || selectedEndTime.isEmpty()) {
-
-            selectedStartTime = "09:00";
-            selectedEndTime = "14:00";
-        }
-        String lecturerId = lecturerIds.get(lecturerPosition);
-        String lecturerName = lecturerNames.get(lecturerPosition);
-        String lecturerContact = lecContact.get(lecturerPosition);
-        String roomId = roomIds.get(roomPosition);
-        String roomName = roomNames.get(roomPosition);
-        String roomLcation = roomLocations.get(roomPosition);
-
-        Map<String, Object> timetableEntry = new HashMap<>();
-        timetableEntry.put("courseName", courseName);
-        timetableEntry.put("adminId", FirebaseAuth.getInstance().getCurrentUser().getUid());
-        timetableEntry.put("lecturerId", lecturerId);
-        timetableEntry.put("lecturerName", lecturerName);
-        timetableEntry.put("lecContact", lecturerContact);
-        timetableEntry.put("roomId", roomId);
-        timetableEntry.put("roomName", roomName);
-        timetableEntry.put("location", roomLcation);
-        timetableEntry.put("timeSlot", duration);
-        timetableEntry.put("day", selectedDays);
-        timetableEntry.put("startDate", start);
-        timetableEntry.put("endDate", end);
+        // Reference to the timetable
         String courseId = getIntent().getStringExtra("courseId");
         if (courseId != null) {
-            databaseReference.child("timetables").child(courseId).updateChildren(timetableEntry)
-                    .addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
-                            binding.progressBar.setVisibility(View.INVISIBLE);
-                            binding.saveTimetableButton.setEnabled(true);
-                            Toast.makeText(this, "Timetable data updated successfully!", Toast.LENGTH_SHORT).show();
-                            finish();
-                        } else {
-                            binding.progressBar.setVisibility(View.INVISIBLE);
-                            binding.saveTimetableButton.setEnabled(true);
-                            Toast.makeText(this, "Failed to update data.", Toast.LENGTH_SHORT).show();
-                        }
-                    });
+            // Update existing timetable
+            databaseReference.child("timetables").child(courseId).updateChildren(timetableData)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(this, "Timetable updated successfully", Toast.LENGTH_SHORT).show();
+                        finish();
+                    })
+                    .addOnFailureListener(e -> Toast.makeText(this, "Failed to update timetable", Toast.LENGTH_SHORT).show());
         } else {
-
-            databaseReference.child("timetables").push().setValue(timetableEntry).addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    binding.progressBar.setVisibility(View.INVISIBLE);
-                    binding.saveTimetableButton.setEnabled(true);
-                    Toast.makeText(this, "Timetable data saved successfully!", Toast.LENGTH_SHORT).show();
-                    finish();
-                } else {
-                    binding.progressBar.setVisibility(View.INVISIBLE);
-                    binding.saveTimetableButton.setEnabled(true);
-                    Toast.makeText(this, "Failed to save data.", Toast.LENGTH_SHORT).show();
-                }
-            });
+            // Add new timetable
+            String newCourseId = databaseReference.child("timetables").push().getKey();
+            if (newCourseId != null) {
+                databaseReference.child("timetables").child(newCourseId).setValue(timetableData)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(this, "Timetable added successfully", Toast.LENGTH_SHORT).show();
+                            finish();
+                        })
+                        .addOnFailureListener(e -> Toast.makeText(this, "Failed to add timetable", Toast.LENGTH_SHORT).show());
+            }
         }
+    }
+
+    private boolean isTimeBefore(String time1, String time2) {
+        return time1.compareTo(time2) < 0;
+    }
+
+    private boolean isTimeAfterOrEqual(String time1, String time2) {
+        return time1.compareTo(time2) <= 0;
+    }
+
+    private boolean isTimeBeforeOrEqual(String time1, String time2) {
+        return time1.compareTo(time2) >= 0;
     }
 }
